@@ -1,0 +1,25 @@
+const {execFileSync}=require('node:child_process');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const args=process.argv.slice(2);
+function option(name,fallback){const i=args.indexOf(name);return i<0?fallback:args[i+1];}
+const matchCount=Number(option('--matches','100000')),mirrorCount=Number(option('--mirror-matches','25000')),seed=Number(option('--seed','2216161'));
+if(!Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Seed must be an unsigned 32-bit integer.');
+if(!Number.isSafeInteger(matchCount)||matchCount<2||matchCount%2||!Number.isSafeInteger(mirrorCount)||mirrorCount<0||mirrorCount%2)throw Error('Match counts must be even; main count >=2.');
+const output=path.resolve(root,option('--output','docs'));
+fs.mkdirSync(output,{recursive:true});
+execFileSync(process.execPath,[require.resolve('typescript/bin/tsc'),'--ignoreConfig','--target','ES2020','--module','commonjs','--moduleResolution','node','--ignoreDeprecations','6.0','--strict','--skipLibCheck','--rootDir','src','--outDir','.expo/simulation','src/simulation/series.ts'],{cwd:root,stdio:'inherit'});
+const {strategies,getStrategy}=require('../.expo/simulation/simulation/strategies');
+const {simulateSeries}=require('../.expo/simulation/simulation/series');
+const {GAME_MODES}=require('../.expo/simulation/game/rulesConfig');
+const {writeReport}=require('./simulation-report.cjs');
+const duel=[],mirror=[];const start=Date.now();
+const run=(a,b,count,mode,list)=>{const t=Date.now();const r=simulateSeries(getStrategy(a),getStrategy(b),count,seed,{mode});list.push(r);console.log(`${mode}: ${a} vs ${b}, ${(r.winRate*100).toFixed(2)}% A, ${count.toLocaleString()} matches, ${((Date.now()-t)/1000).toFixed(2)}s`);};
+for(let a=0;a<strategies.length;a++)for(let b=a+1;b<strategies.length;b++)run(strategies[a].id,strategies[b].id,matchCount,'ranked_duel',duel);
+for(const id of ['SMART_BASELINE','SIMPLE_17'])run(id,id,matchCount,'ranked_duel',duel);
+if(mirrorCount)for(const [a,b] of [['SMART_BASELINE','RANDOM'],['SMART_BASELINE','SIMPLE_15'],['SMART_BASELINE','SIMPLE_17'],['SMART_BASELINE','SMART_BASELINE'],['SIMPLE_17','SIMPLE_17']])run(a,b,mirrorCount,'ranked_mirror',mirror);
+const results={schemaVersion:1,seed,randomness:'Mulberry32 with mixed independent card/A/B streams; paired common seeds and reversed seats',rules:{rankedDuel:GAME_MODES.ranked_duel,rankedMirror:GAME_MODES.ranked_mirror},strategies:strategies.map(({id,description})=>({id,description})),totalMatches:[...duel,...mirror].reduce((n,r)=>n+r.matchCount,0),duel,mirror};
+fs.writeFileSync(path.join(output,'simulation-results.json'),JSON.stringify(results,null,2)+'\n');
+fs.writeFileSync(path.join(output,'RANKED_DUEL_SIMULATION.md'),writeReport(results));
+console.log(`Completed ${results.totalMatches.toLocaleString()} matches in ${((Date.now()-start)/1000).toFixed(2)}s. Report/data: ${output}`);
