@@ -3,61 +3,60 @@ import { palette } from './theme';
 
 type Props = { mirror: boolean; compact?: boolean; selected?: boolean };
 
-// Opposing card-proportioned structures. The same composition has a lobby scale
-// and a full mode scale, with separate parts available for future resolve motion.
+// Card-proportioned planes, split axis and converging strokes share one language.
+// Selection resolves the independently addressable structures toward the axis.
 export function ModeGeometry({ mirror, compact = false, selected = false }: Props) {
+  const convergence = selected ? (compact ? 2 : 5) : 0;
   return <View accessible={false} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.root, compact && styles.compact, selected && styles.resolved]}>
-    <View style={[styles.field, mirror ? styles.balanced : styles.approach]}>
-      <View style={[styles.plane, mirror && styles.mirrorPlane]} />
-      <View style={[styles.structure, mirror ? styles.mirrorStructure : styles.duelStructure]}>
-        <View style={[styles.rail, mirror && styles.silver]} />
-        <View style={[styles.rung, styles.top, mirror && styles.silver]} />
-        <View style={[styles.rung, styles.middle]} />
-        <View style={[styles.rung, styles.lower, !mirror && styles.pressure]} />
-        <View style={[styles.rung, styles.base]} />
+    <View style={[styles.field, !mirror && styles.approach, { transform: [{ translateX: convergence }, { translateY: mirror ? 0 : -7 }] }]}>
+      <View style={[styles.structure, !mirror && styles.attacking]}>
+        <View style={styles.rearPlane} />
+        <View style={[styles.plane, mirror && styles.mirrorPlane]} />
+        <View style={[styles.face, mirror && styles.silverFace]} />
+        <View style={[styles.spine, mirror && styles.silverSpine]} />
+        <View style={[styles.signal, mirror && styles.mirrorSignal]} />
+        <View style={[styles.echo, !mirror && styles.pressure]} />
       </View>
-      <View style={[styles.signal, mirror && styles.mirrorSignal]} />
     </View>
-    <View style={[styles.axis, mirror && styles.mirrorAxis]} />
-    <View style={[styles.field, styles.opposing, mirror ? styles.balanced : styles.retreat]}>
-      <View style={[styles.plane, mirror && styles.mirrorPlane]} />
-      <View style={[styles.structure, mirror ? styles.mirrorStructure : styles.defendingStructure]}>
-        <View style={[styles.rail, mirror && styles.silver]} />
-        <View style={[styles.rung, styles.top, mirror && styles.silver]} />
-        <View style={[styles.rung, styles.middle]} />
-        <View style={[styles.rung, styles.lower]} />
-        <View style={[styles.rung, styles.base]} />
+    <View style={[styles.axis, mirror && styles.mirrorAxis]}>
+      <View style={[styles.axisStroke, !mirror && styles.interrupted]} /><View style={styles.axisStroke} />
+    </View>
+    <View style={[styles.field, !mirror && styles.retreat, { transform: [{ scaleX: -1 }, { translateX: convergence }, { translateY: mirror ? 0 : 11 }] }]}>
+      <View style={[styles.structure, !mirror && styles.defending]}>
+        <View style={styles.rearPlane} />
+        <View style={[styles.plane, mirror && styles.mirrorPlane]} />
+        <View style={[styles.face, mirror && styles.silverFace]} />
+        <View style={[styles.spine, mirror && styles.silverSpine]} />
+        <View style={[styles.signal, mirror && styles.mirrorSignal]} />
+        <View style={styles.echo} />
       </View>
-      <View style={[styles.signal, mirror && styles.mirrorSignal]} />
     </View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  root: { width: '100%', height: 110, flexDirection: 'row', alignItems: 'center', gap: 24, opacity: 0.72 },
-  compact: { height: 48, gap: 14 },
+  root: { width: '100%', height: 108, flexDirection: 'row', alignItems: 'center', gap: 22, opacity: 0.68 },
+  compact: { height: 50, gap: 10 },
   resolved: { opacity: 1 },
   field: { flex: 1, height: '100%', justifyContent: 'center' },
-  balanced: { flex: 1 },
-  approach: { flex: 1.12, transform: [{ translateY: -8 }] },
-  retreat: { flex: 0.88, transform: [{ scaleX: -1 }, { translateY: 12 }] },
-  opposing: { transform: [{ scaleX: -1 }] },
-  plane: { position: 'absolute', left: '6%', right: '16%', top: '12%', bottom: '12%', backgroundColor: palette.surface1 },
-  mirrorPlane: { left: '12%', right: '12%', backgroundColor: palette.systemSurface },
-  structure: { height: '76%', width: '100%', position: 'relative' },
-  duelStructure: { transform: [{ skewX: '-12deg' }] },
-  defendingStructure: { height: '64%', transform: [{ skewX: '8deg' }] },
-  mirrorStructure: { height: '80%' },
-  rail: { position: 'absolute', left: '6%', top: 0, bottom: 0, width: 1, backgroundColor: palette.borderActive },
-  rung: { position: 'absolute', left: '6%', height: 1, backgroundColor: palette.borderActive },
-  top: { top: 0, width: '80%', backgroundColor: palette.player },
-  middle: { top: '32%', width: '94%' },
-  lower: { top: '66%', width: '70%' },
-  base: { bottom: 0, width: '80%' },
-  pressure: { backgroundColor: palette.dangerBorder },
-  silver: { backgroundColor: palette.system },
-  signal: { position: 'absolute', right: 0, top: '45%', width: '20%', height: 1, backgroundColor: palette.player },
+  approach: { flex: 1.14 },
+  retreat: { flex: 0.86 },
+  structure: { height: '88%', width: '100%', position: 'relative' },
+  attacking: { transform: [{ skewX: '-13deg' }] },
+  defending: { height: '68%', transform: [{ skewX: '9deg' }] },
+  rearPlane: { position: 'absolute', top: '10%', bottom: '-5%', left: '14%', width: '60%', borderWidth: 1, borderColor: palette.line },
+  plane: { position: 'absolute', top: 0, bottom: '6%', left: '6%', width: '61%', backgroundColor: palette.surface1 },
+  mirrorPlane: { backgroundColor: palette.systemSurface },
+  face: { position: 'absolute', top: 0, bottom: '6%', left: '6%', width: '61%', borderWidth: 1, borderColor: palette.borderActive },
+  silverFace: { borderColor: palette.system },
+  spine: { position: 'absolute', left: '6%', top: 0, bottom: '6%', width: 2, backgroundColor: palette.borderActive },
+  silverSpine: { backgroundColor: palette.system },
+  signal: { position: 'absolute', left: '6%', right: '-9%', top: '39%', height: 1, backgroundColor: palette.player },
   mirrorSignal: { top: '50%', backgroundColor: palette.system },
-  axis: { width: 1, height: 16, backgroundColor: palette.dangerBorder, transform: [{ rotate: '18deg' }] },
-  mirrorAxis: { height: '100%', backgroundColor: palette.line, transform: [{ rotate: '0deg' }] },
+  echo: { position: 'absolute', left: '48%', right: '-2%', top: '65%', height: 1, backgroundColor: palette.borderActive },
+  pressure: { right: '2%', backgroundColor: palette.dangerBorder },
+  axis: { width: 2, height: 28, gap: 5, transform: [{ rotate: '18deg' }] },
+  mirrorAxis: { height: '100%', width: 1, transform: [{ rotate: '0deg' }] },
+  axisStroke: { flex: 1, backgroundColor: palette.line },
+  interrupted: { backgroundColor: palette.dangerBorder },
 });

@@ -10,16 +10,19 @@ export function MatchEntryMark({ pressed, mirror = false }: { pressed: boolean; 
     <View style={[styles.axis, mirror && styles.mirrorAxis]} />
     <View style={[styles.side, styles.opposing, { transform: [{ translateX: pressed ? -7 : 0 }] }]}>
       <View style={styles.line} /><View style={[styles.line, styles.inner]} />
+      <View style={styles.tipUpper} /><View style={styles.tipLower} />
     </View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  root: { width: 70, height: 26, flexDirection: 'row', gap: 9, alignItems: 'center' },
+  root: { width: 78, height: 26, flexDirection: 'row', gap: 9, alignItems: 'center' },
   side: { flex: 1, gap: 6, alignItems: 'flex-end' },
   opposing: { alignItems: 'flex-start' },
   line: { height: 1, width: '100%', backgroundColor: palette.player },
   inner: { width: '68%', backgroundColor: palette.borderActive },
   axis: { width: 1, height: 8, backgroundColor: palette.player },
   mirrorAxis: { height: 22 },
+  tipUpper: { position: 'absolute', right: 0, top: 0, width: 8, height: 1, backgroundColor: palette.player, transform: [{ rotate: '35deg' }] },
+  tipLower: { position: 'absolute', right: 0, top: 5, width: 8, height: 1, backgroundColor: palette.player, transform: [{ rotate: '-35deg' }] },
 });

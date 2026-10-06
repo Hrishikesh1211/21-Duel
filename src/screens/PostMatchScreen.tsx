@@ -7,8 +7,8 @@ import type { RankedResult, SessionPlayer } from '../competitive/session';
 import { palette } from '../components/theme';
 import { modeConfig } from '../game/rulesConfig';
 
-type Props = { player: SessionPlayer; result: RankedResult; onHome: () => void; onRematch: () => void; onReview?: () => void };
-export default function PostMatchScreen({ player, result, onHome, onRematch, onReview }: Props) {
+type Props = { player: SessionPlayer; result: RankedResult; onHome: () => void; onRematch: () => void };
+export default function PostMatchScreen({ player, result, onHome, onRematch }: Props) {
   const reduced = useReducedMotion();
   const [stage, setStage] = useState(reduced ? 3 : 0);
   const feedbackId = useRef<number | null>(null);
@@ -61,7 +61,6 @@ export default function PostMatchScreen({ player, result, onHome, onRematch, onR
       </View>
       <View style={styles.actions}>
         <Pressable accessibilityRole="button" onPress={onRematch} style={({ pressed }) => [styles.button, styles.primary, pressed && styles.pressed]}><Text style={styles.primaryText}>REMATCH</Text></Pressable>
-        {onReview ? <Pressable accessibilityRole="button" onPress={onReview} style={({ pressed }) => [styles.button, pressed && styles.pressed]}><Text style={styles.reviewText}>REVIEW MATCH</Text></Pressable> : null}
         <Pressable accessibilityRole="button" onPress={onHome} style={({ pressed }) => [styles.button, pressed && styles.pressed]}><Text style={styles.secondaryText}>HOME</Text></Pressable>
       </View>
     </ScrollView>
@@ -96,6 +95,5 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: palette.playerSurface, borderWidth: 1, borderColor: palette.borderActive },
   primaryText: { color: palette.text, fontSize: 12, fontWeight: '600', letterSpacing: 2 },
   secondaryText: { color: palette.muted, fontSize: 10, letterSpacing: 2 },
-  reviewText: { color: palette.accent, fontSize: 10, letterSpacing: 2 },
   pressed: { opacity: 0.7 },
 });

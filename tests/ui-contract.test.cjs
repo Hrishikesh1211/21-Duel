@@ -241,7 +241,7 @@ test('Modes selects either identity without launching and offers Play for the cu
     let state, selected='ranked_duel', plays=0;
     const ref={current:false};
     const Screen=load('src/screens/ModesScreen.tsx',{
-      react:{...React,useState:initial=>[state??(typeof initial==='function'?initial():initial),value=>{state=value;}],useRef:()=>ref},
+      react:{...React,useEffect:()=>{},useState:initial=>[state??(typeof initial==='function'?initial():initial),value=>{state=value;}],useRef:()=>ref},
       'expo-haptics':{impactAsync:()=>Promise.resolve(),ImpactFeedbackStyle:{Light:'light'}},
     }).default;
     const render=()=>Screen({selected,onSelect:id=>{selected=id;},onPlay:()=>plays++});
@@ -419,7 +419,7 @@ test('Shop lists twelve local cosmetic options and Profile retains its dossier',
   const Profile=load('src/screens/ProfileScreen.tsx').default;
   const profile=Profile({player:player(1496)});
   assert.equal(nodes(profile).find(n=>n.props?.testID==='profile-rating').props.children,1496);
-  for(const section of ['COMPETITIVE','STATS','MATCH HISTORY','LOADOUT'])assert.ok(text(profile).includes(section));
+  for(const section of ['COMPETITIVE','STATS','MATCH HISTORY','FRIENDS'])assert.ok(text(profile).includes(section));
 });
 test('Shell has exactly four destinations and retains a selected Casual mode across tab changes and cancel',()=>{
   const render=appHarness();
@@ -499,10 +499,10 @@ test('Profile v1 derives record, win rate, competitive progress and peak from th
   assert.ok(text(top).includes('TOP OF LOCAL LADDER'));
   assert.ok(!text(top).includes('TO ADVANCE'));
 });
-test('Profile v1 shows five recent matches, hides Casual deltas and resolves every equipped cosmetic',()=>{
+test('Profile v1 shows five recent matches and hides Casual deltas',()=>{
   const Profile=load('src/screens/ProfileScreen.tsx').default;
   const {sampleRecentMatches,samplePlayStyleStats}=load('src/data/localProfile.ts');
-  const {defaultCosmetics,equippedCosmetics}=load('src/data/cosmetics.ts');
+  const {defaultCosmetics}=load('src/data/cosmetics.ts');
   const history=[...sampleRecentMatches,{...sampleRecentMatches[0],id:'sixth'}];
   const tree=Profile({player:{...player(1482),...defaultCosmetics},recentMatches:history,rankedMatchCount:44});
   assert.equal(nodes(tree).find(n=>n.props?.testID==='profile-matches').props.children,44);
@@ -510,9 +510,6 @@ test('Profile v1 shows five recent matches, hides Casual deltas and resolves eve
   assert.equal(nodes(tree).find(n=>n.props?.testID==='profile-delta-sample-5').props.children,'+14');
   assert.equal(nodes(tree).find(n=>n.props?.testID==='profile-delta-sample-4').props.children,'-11');
   assert.equal(nodes(tree).find(n=>n.props?.testID==='profile-delta-sample-3').props.children,'\u2014');
-  for(const {label,item} of equippedCosmetics(defaultCosmetics)){
-    assert.ok(nodes(tree).some(n=>n.props?.accessibilityLabel===label+', '+item.name+', equipped'));
-  }
   for(const stat of samplePlayStyleStats)assert.ok(text(tree).includes(stat.label));
   assert.doesNotMatch(text(tree), /SAMPLE/);
   assert.ok(nodes(tree).filter(n=>n.props?.testID?.startsWith('profile-match-')).every(n=>!n.props.accessibilityLabel.includes('sample')));
@@ -538,12 +535,16 @@ test('Profile v1 receives a newly completed match and live metrics through App w
   assert.equal(profile.props.recentMatches[0].source,'session');
   assert.ok(profile.props.recentMatches[0].timestamp>0);
 });
-test('Profile loadout opens shared selection with equipped identity',()=>{
- const Profile=load('src/screens/ProfileScreen.tsx').default;let opened;
+test('Profile ends at Friends with no loadout content or cosmetic actions',()=>{
+ const Profile=load('src/screens/ProfileScreen.tsx').default;
  const equipped={...player(1482),...load('src/data/cosmetics.ts').defaultCosmetics,cardBackId:'mirror-mark'};
- const tree=Profile({player:equipped,onOpenCosmetics:(...args)=>opened=args});
- nodes(tree).find(n=>n.props?.accessibilityLabel==='CARD BACK, Mirror Mark, equipped').props.onPress();
- assert.deepEqual(opened,['cardBackId','mirror-mark']);assert.equal(equipped.cardBackId,'mirror-mark');
+ const before={...equipped};const tree=Profile({player:equipped,onFriends:()=>{}});
+ assert.doesNotMatch(text(tree),/LOADOUT|CARD BACK|ACTION STYLE|21 EFFECT/);
+ assert.equal(nodes(tree).filter(n=>n.props?.accessibilityHint==='Choose and equip a cosmetic').length,0);
+ const scroll=nodes(tree).find(n=>n.type==='ScrollView');
+ const content=scroll.props.children.flat(Infinity).filter(Boolean);
+ assert.ok(text(content.at(-1)).includes('FRIENDS'));
+ assert.deepEqual(equipped,before);
 });
 
 for (const [slot,id] of [['playerCardId','night-signal'],['cardBackId','split-axis'],['actionStyleId','minimal'],['twentyOneEffectId','precision']]) {
@@ -612,13 +613,13 @@ test('exact 21 routes all three marks and decorative timings with reduced motion
  animated.useReducedMotion=()=>true;clocks.length=0;Effect({total:21,textStyle:{}});assert.deepEqual(clocks,[]);
  }
 });
-test('Shop and Profile equip through the same selector and immediately update Home',()=>{
+test('Shop equips through the shared selector and updates Profile and Home',()=>{
  const render=appHarness();let tree=render();
  nodes(tree).find(n=>n.props?.accessibilityRole==='tab'&&text(n)==='SHOP').props.onPress();tree=render();
  nodes(tree).find(n=>n.type==='ShopScreen').props.onOpenCosmetics('playerCardId','mirror-frame');tree=render();assert.equal(tree.type,'CosmeticSelector');
  tree.props.onEquip('playerCardId','mirror-frame');tree=render();assert.equal(tree.props.player.playerCardId,'mirror-frame');tree.props.onClose();tree=render();
  nodes(tree).find(n=>n.props?.accessibilityRole==='tab'&&text(n)==='PROFILE').props.onPress();tree=render();
- const profile=nodes(tree).find(n=>n.type==='ProfileScreen');assert.equal(profile.props.player.playerCardId,'mirror-frame');profile.props.onOpenCosmetics('cardBackId');tree=render();assert.equal(tree.type,'CosmeticSelector');tree.props.onEquip('cardBackId','mirror-mark');tree.props.onClose();tree=render();
+ const profile=nodes(tree).find(n=>n.type==='ProfileScreen');assert.equal(profile.props.player.playerCardId,'mirror-frame');assert.equal(profile.props.onOpenCosmetics,undefined);nodes(tree).find(n=>n.props?.accessibilityRole==='tab'&&text(n)==='SHOP').props.onPress();tree=render();nodes(tree).find(n=>n.type==='ShopScreen').props.onOpenCosmetics('cardBackId');tree=render();assert.equal(tree.type,'CosmeticSelector');tree.props.onEquip('cardBackId','mirror-mark');tree.props.onClose();tree=render();
  nodes(tree).find(n=>n.props?.accessibilityRole==='tab'&&text(n)==='HOME').props.onPress();tree=render();const home=nodes(tree).find(n=>n.type==='HomeScreen');assert.equal(home.props.player.cardBackId,'mirror-mark');assert.equal(home.props.player.playerCardId,'mirror-frame');
  const fresh=appHarness()();assert.equal(nodes(fresh).find(n=>n.type==='HomeScreen').props.player.playerCardId,'duel-standard');assert.equal(load('src/data/cosmetics.ts').getEquippedCosmetic(nodes(fresh).find(n=>n.type==='HomeScreen').props.player,'playerCardId').id,'duel-standard');
 });
@@ -626,8 +627,8 @@ test('shared selector equips once, reports equipped state and provides light hap
  const cosmetics=load('src/data/cosmetics.ts');let selected='night-signal',equips=[],haptics=[];
  const Selector=load('src/screens/CosmeticSelector.tsx',{react:{...React,useState:()=>[selected,id=>selected=id]},'expo-haptics':{ImpactFeedbackStyle:{Light:'light'},impactAsync:style=>{haptics.push(style);return Promise.resolve();}}}).default;
  const props={player:{...player(1482),...cosmetics.defaultCosmetics},slot:'playerCardId',onEquip:(...args)=>equips.push(args),onClose:()=>{}};
- let tree=Selector(props);nodes(tree).find(n=>text(n)==='EQUIP'&&n.props?.accessibilityRole==='button').props.onPress();assert.deepEqual(equips,[['playerCardId','night-signal']]);assert.deepEqual(haptics,['light']);
- props.player.playerCardId='night-signal';tree=Selector(props);assert.ok(nodes(tree).some(n=>n.props?.disabled&&text(n)==='EQUIPPED'));
+ let tree=Selector(props);nodes(tree).find(n=>text(n).trim()==='EQUIP'&&n.props?.accessibilityRole==='button').props.onPress();assert.deepEqual(equips,[['playerCardId','night-signal']]);assert.deepEqual(haptics,['light']);
+ props.player.playerCardId='night-signal';tree=Selector(props);assert.ok(nodes(tree).some(n=>n.props?.disabled&&text(n).trim()==='EQUIPPED'));
 });
 test('21 cosmetic digit travel remains balanced for local and opponent totals',()=>{
  for(const id of ['twenty-one-standard','precision','line-break'])for(const opponent of [false,true]){
@@ -715,15 +716,14 @@ test('incoming challenge control is hidden normally and available only with expl
  for(const flag of [undefined,false,true]){const tree=Friends({...props,showDevelopmentControls:flag});const trigger=nodes(tree).find(n=>n.props?.accessibilityRole==='button'&&text(n)==='SIMULATE INCOMING CHALLENGE');assert.equal(!!trigger,flag===true);if(trigger)trigger.props.onPress();}
  assert.equal(incoming,1);
 });
-test('Profile lists all four equipped categories from catalog without development copy',()=>{
- const Profile=load('src/screens/ProfileScreen.tsx').default;const {equippedCosmetics}=load('src/data/cosmetics.ts');
+test('Profile keeps match history and omits cosmetics for a fully equipped player',()=>{
+ const Profile=load('src/screens/ProfileScreen.tsx').default;
  const equipped={...player(1482),playerCardId:'night-signal',cardBackId:'mirror-mark',actionStyleId:'minimal',twentyOneEffectId:'precision'};
  const tree=Profile({player:equipped,recentMatches:load('src/data/localProfile.ts').sampleRecentMatches});
- const rows=nodes(tree).filter(n=>n.props?.accessibilityHint==='Choose and equip a cosmetic');assert.equal(rows.length,4);
- assert.deepEqual(equippedCosmetics(equipped).map(c=>c.label),['PLAYER CARD','CARD BACK','ACTION STYLE','21 EFFECT']);
- for(const {label,item} of equippedCosmetics(equipped))assert.ok(rows.some(n=>n.props.accessibilityLabel===`${label}, ${item.name}, equipped`));
- assert.doesNotMatch(text(tree),/SAMPLE|LOCAL PROTOTYPE|LOCAL TEST/);
+ assert.ok(nodes(tree).some(n=>n.props?.testID?.startsWith('profile-match-')));
+ assert.doesNotMatch(text(tree),/LOADOUT|Night Signal|Mirror Mark|Minimal|Precision|SAMPLE|LOCAL PROTOTYPE|LOCAL TEST/);
 });
+
 function reviewedResult(mode='casual_duel'){
  const {createMatch,decisionSequence,newRound,raiseActor,raiseDecision}=require('../.expo/presentation-tests/game/engine');const {handTotal}=require('../.expo/presentation-tests/game/hand');const {MatchHistoryRecorder}=require('../.expo/presentation-tests/review/history');let game=createMatch(()=>.5,mode);const recorder=new MatchHistoryRecorder(game);
  while(game.phase!=='match-complete'){
@@ -737,7 +737,7 @@ function reviewedResult(mode='casual_duel'){
 test('all four modes finish without opening Review and allow immediate Rematch or Home with a retained review',()=>{
  for(const mode of ['ranked_duel','ranked_mirror','casual_duel','casual_mirror'])for(const action of ['onRematch','onHome']){
   const render=appHarness();let tree=render();nodes(tree).find(n=>n.type==='HomeScreen').props.onModes();tree=render();nodes(tree).find(n=>n.type==='ModesScreen').props.onSelect(mode);tree=render();nodes(tree).find(n=>n.type==='ModesScreen').props.onPlay();tree=render();if(tree.type==='RankedFairPlayScreen'){tree.props.onContinue();tree=render();}tree.props.onComplete({name:'MASON',rating:1511});tree=render();nodes(tree).find(n=>n.type==='GameTable').props.onMatchComplete(reviewedResult(mode));tree=render();
-  assert.equal(tree.type,mode.startsWith('ranked')?'PostMatchScreen':'CasualResultScreen');assert.equal(typeof tree.props.onReview,'function');assert.equal(render.route(),undefined);
+  assert.equal(tree.type,mode.startsWith('ranked')?'PostMatchScreen':'CasualResultScreen');assert.equal(tree.props.onReview,undefined);assert.equal(render.route(),undefined);
   tree.props[action]();tree=render();assert.equal(render.route(),undefined);
   if(action==='onRematch'){assert.equal(tree.type,'MatchmakingScreen');assert.equal(tree.props.mode,mode);tree.props.onCancel();tree=render();}
   assert.ok(nodes(tree).some(n=>n.type==='HomeScreen'));assert.equal(render.route(),undefined);
@@ -751,9 +751,52 @@ test('result buttons call Rematch and Home independently without invoking Review
   assert.equal(reviews,0);const buttons=nodes(tree).filter(n=>n.props?.accessibilityRole==='button');buttons.find(n=>text(n)==='REMATCH').props.onPress();buttons.find(n=>text(n)==='HOME').props.onPress();assert.equal(rematches,1);assert.equal(homes,1);assert.equal(reviews,0);
  }
 });
-test('PostMatch and Casual result keep Rematch primary with Review between Rematch and Home',()=>{for(const screen of ['PostMatchScreen','CasualResultScreen']){let reviewed=0;const Component=load(`src/screens/${screen}.tsx`).default;const result={...reviewedResult(),mode:'casual_duel',matchId:1,oldRating:1482,newRating:1496,ratingDelta:14,oldDivision:'SILVER II'};const tree=Component({player:player(1496),result,onRematch:()=>{},onHome:()=>{},onReview:()=>reviewed++});const buttons=nodes(tree).filter(n=>n.props?.accessibilityRole==='button');assert.deepEqual(buttons.map(text),['REMATCH','REVIEW MATCH','HOME']);buttons[1].props.onPress();assert.equal(reviewed,1);}});
-test('result Review and retained Profile history navigate to the same route without reapplying ratings; rematch clears current result',()=>{const render=appHarness();let tree=render();nodes(tree).find(n=>n.type==='HomeScreen').props.onModes();tree=render();const selector=nodes(tree).find(n=>n.type==='ModesScreen');selector.props.onSelect('casual_duel');tree=render();nodes(tree).find(n=>n.type==='ModesScreen').props.onPlay();tree=render();tree.props.onComplete({name:'MASON',rating:1511});tree=render();const result=reviewedResult();nodes(tree).find(n=>n.type==='GameTable').props.onMatchComplete(result);tree=render();assert.equal(tree.type,'CasualResultScreen');tree.props.onReview();assert.deepEqual(render.route(),{pathname:'/review/[id]',params:{id:'local-1'}});assert.equal(render().props.result.playerRounds,result.playerRounds);tree.props.onRematch();tree=render();assert.equal(tree.type,'MatchmakingScreen');tree.props.onCancel();tree=render();nodes(tree).find(n=>n.props?.accessibilityRole==='tab'&&text(n)==='PROFILE').props.onPress();tree=render();const profile=nodes(tree).find(n=>n.type==='ProfileScreen');assert.deepEqual(profile.props.reviewIds,['local-1']);assert.equal(profile.props.player.rating,1482);profile.props.onReview('local-1');assert.deepEqual(render.route(),{pathname:'/review/[id]',params:{id:'local-1'}});});
+test('result screens show only Rematch and Home with Rematch primary',()=>{
+ for(const screen of ['PostMatchScreen','CasualResultScreen']){
+  const Component=load(`src/screens/${screen}.tsx`).default;
+  const result={...reviewedResult(),mode:'casual_duel',matchId:1,oldRating:1482,newRating:1496,ratingDelta:14,oldDivision:'SILVER II'};
+  const tree=Component({player:player(1496),result,onRematch:()=>{},onHome:()=>{}});
+  const buttons=nodes(tree).filter(n=>n.props?.accessibilityRole==='button');
+  assert.deepEqual(buttons.map(text),['REMATCH','HOME']);assert.doesNotMatch(text(tree),/REVIEW MATCH/);
+  const primary=buttons[0].props.style({pressed:false}).flat();
+  assert.ok(primary.some(style=>style?.backgroundColor));
+ }
+});
+test('retained Profile history row opens its exact review without changing session metrics',()=>{
+ const render=appHarness();let tree=render();
+ nodes(tree).find(n=>n.type==='HomeScreen').props.onModes();tree=render();nodes(tree).find(n=>n.type==='ModesScreen').props.onSelect('casual_duel');tree=render();nodes(tree).find(n=>n.type==='ModesScreen').props.onPlay();tree=render();tree.props.onComplete({name:'MASON',rating:1511});tree=render();
+ nodes(tree).find(n=>n.type==='GameTable').props.onMatchComplete(reviewedResult());tree=render();assert.equal(tree.props.onReview,undefined);assert.equal(render.route(),undefined);
+ tree.props.onHome();tree=render();nodes(tree).find(n=>n.props?.accessibilityRole==='tab'&&text(n)==='PROFILE').props.onPress();tree=render();
+ const profile=nodes(tree).find(n=>n.type==='ProfileScreen');const before=JSON.stringify(profile.props);assert.deepEqual(profile.props.reviewIds,['local-1']);
+ const Profile=load('src/screens/ProfileScreen.tsx').default;const row=nodes(Profile(profile.props)).find(n=>n.props?.testID==='profile-match-local-1');row.props.onPress();
+ assert.deepEqual(render.route(),{pathname:'/review/[id]',params:{id:'local-1'}});
+ assert.equal(JSON.stringify(nodes(render()).find(n=>n.type==='ProfileScreen').props),before);
+ profile.props.onReview('missing');assert.deepEqual(render.route(),{pathname:'/review/[id]',params:{id:'local-1'}});
+});
 test('Profile makes only retained review rows tappable and leaves old mock rows unchanged',()=>{const Profile=load('src/screens/ProfileScreen.tsx').default;let opened;const matches=[{id:'local-1',opponentName:'MASON',modeId:'casual_duel',outcome:'win',playerScore:3,opponentScore:0},{id:'sample-1',opponentName:'NOVA',modeId:'ranked_mirror',outcome:'loss',playerScore:5,opponentScore:7}];const tree=Profile({player:player(1482),recentMatches:matches,reviewIds:['local-1'],onReview:id=>{opened=id;}});const retained=nodes(tree).find(n=>n.props?.testID==='profile-match-local-1'),old=nodes(tree).find(n=>n.props?.testID==='profile-match-sample-1');assert.equal(retained.props.accessibilityRole,'button');assert.equal(old.props.onPress,undefined);retained.props.onPress();assert.equal(opened,'local-1');});
 test('Match Review renders factual chronological actions, score transitions and no coaching or game controls',()=>{const result=reviewedResult();const review={id:'local-1',matchId:1,modeId:'casual_duel',playerName:'ALVIN',opponentName:'MASON',completedAt:0,finalScore:{human:3,bot:0},outcome:'win',rounds:result.roundHistory};const Screen=load('src/screens/MatchReviewScreen.tsx').default;const tree=Screen({review,onBack:()=>{}});const rows=nodes(tree).filter(n=>typeof n.type==='function').map(n=>n.type(n.props));const copy=text([tree,...rows]);assert.match(copy,/MATCH REVIEW.*CASUAL DUEL/);assert.match(copy,/HIT → 3♥.*HIT → 3♠.*STAND → 19/);assert.match(copy,/0\s*\u2013\s*0.*\u2192.*1\s*\u2013\s*0/);assert.ok(copy.search(/ROUND\s+1/)<copy.search(/ROUND\s+2/));assert.doesNotMatch(copy,/BEST MOVE|MISTAKE|ACCURACY|EXPECTED VALUE|WIN PROBABILITY|OPTIMAL|SIMULATOR|AI REVIEW/);assert.equal(nodes(tree).filter(n=>n.props?.accessibilityRole==='button').length,1);assert.match(text(Screen({onBack:()=>{}})),/Review unavailable/);});
 test('Review route accepts only retained IDs and receives no writable session/controller access',()=>{const {findMatchReview}=require('../.expo/presentation-tests/review/history');const result=reviewedResult();const review={id:'local-1',rounds:result.roundHistory};let back=0;const Route=load('src/app/review/[id].tsx',{'expo-router':{useLocalSearchParams:()=>({id:'local-1'}),router:{canGoBack:()=>true,back:()=>back++}},'../../presentation/SessionContext':{useMatchReviews:()=>[review]},'../../review/history':{findMatchReview},'../../screens/MatchReviewScreen':{__esModule:true,default:'MatchReviewScreen'}}).default;const tree=Route();assert.equal(tree.props.review,review);tree.props.onBack();assert.equal(back,1);assert.doesNotMatch(fs.readFileSync('src/app/review/[id].tsx','utf8'),/useSession\(|dispatch|TableController|game\/engine|simulation/);});
 test('Fold review presentation never renders a folded opponent hidden card, total or invented action',()=>{const {createMatch,raiseDecision}=require('../.expo/presentation-tests/game/engine');const {MatchHistoryRecorder}=require('../.expo/presentation-tests/review/history');const card=rank=>({rank,suit:'hearts'});let game={...createMatch(()=>.5,'ranked_duel'),human:{hand:[card('10'),card('9')],status:'playing'},bot:{hand:[card('9'),card('A')],status:'playing'},score:{human:6,bot:5}};const recorder=new MatchHistoryRecorder(game);recorder.preAction('human','raise');game=raiseDecision(game,'human','raise');recorder.preAction('bot','fold');game=raiseDecision(game,'bot','fold');recorder.finishRound(game,false);const review={id:'local-1',modeId:'ranked_duel',playerName:'ALVIN',opponentName:'MASON',finalScore:{human:7,bot:5},rounds:recorder.rounds()};const Screen=load('src/screens/MatchReviewScreen.tsx').default,tree=Screen({review,onBack:()=>{}}),rows=nodes(tree).filter(n=>typeof n.type==='function').map(n=>n.type(n.props)),copy=text(rows);assert.match(copy,/MASON\s+FOLDED/);assert.match(copy,/HAND NOT REVEALED/);assert.match(copy,/FOLD WIN.*ALVIN \+1/);assert.doesNotMatch(copy,/A♥|REVEAL:|STAND|\b20\b/);});
+
+
+test('Lobby identity experiment is opt-in; catalog and matchup cards keep the approved presentation', () => {
+  const equipped = { ...player(1482), playerCardId: 'night-signal' };
+  const Home = load('src/screens/HomeScreen.tsx').default;
+  const Card = load('src/components/PlayerCard.tsx').PlayerCard;
+  const homeProps = nodes(Home({ player: equipped, selectedMode: 'ranked_duel' })).find(n => n.type === 'PlayerCard').props;
+  assert.equal(homeProps.artDirection, 'lobby');
+  const lobby = Card(homeProps), standard = Card({ player: equipped }), compact = Card({ player: equipped, compact: true });
+  for (const tree of [lobby, standard, compact]) {
+    assert.equal(tree.props.accessibilityLabel, 'ALVIN, 1482 rating, SILVER II');
+    assert.match(text(tree), /NIGHT SIGNAL/);
+    assert.deepEqual(nodes(tree).find(n => n.type === 'CosmeticGeometry').props.config, nodes(lobby).find(n => n.type === 'CosmeticGeometry').props.config);
+  }
+  assert.ok(nodes(lobby).some(n => n.type === 'RankEmblem'));
+  assert.ok([standard, compact].every(tree => !nodes(tree).some(n => n.type === 'RankEmblem')));
+  const Preview = load('src/components/CosmeticPreview.tsx').CosmeticPreview;
+  const cosmetics = load('src/data/cosmetics.ts');
+  const preview = Preview({ item: cosmetics.getCosmetic('night-signal'), player: equipped });
+  assert.equal(preview.props.artDirection, undefined);
+  const Friend = load('src/screens/FriendProfileScreen.tsx').default;
+  assert.equal(nodes(Friend({ friend: { ...equipped, online: true } })).find(n => n.type === 'PlayerCard').props.artDirection, undefined);
+});

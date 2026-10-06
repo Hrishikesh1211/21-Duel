@@ -108,13 +108,13 @@ function LocalApp() {
   if (screen === 'matchmaking' && (fairPlay.open || rulesOpen)) return <RankedFairPlayScreen mode={matchMode} onContinue={acknowledgeFairPlay} onCancel={returnHome} />;
   if (screen === 'matchmaking') return <MatchmakingScreen key={session.activeMatchId} friend={matchFriend} mode={matchMode} onRules={reopenFairPlay} player={session.player} onCancel={returnHome} onComplete={openGame} />;
   if (screen === 'game') return <Animated.View entering={FadeIn.duration(180)} style={styles.root}><GameTable mode={matchMode} opponent={opponent} onMatchComplete={finishMatch} onExit={returnHome} /></Animated.View>;
-  if (screen === 'postMatch' && session.result) return <PostMatchScreen player={session.player} key={session.result.matchId} result={session.result} onHome={returnHome} onRematch={rematch} onReview={findMatchReview(session.matchReviews, `local-${session.result.matchId}`) ? () => openReview(`local-${session.result!.matchId}`) : undefined} />;
-  if (screen === 'casualResult' && session.casualResult) return <CasualResultScreen result={session.casualResult} onHome={returnHome} onRematch={rematch} onReview={findMatchReview(session.matchReviews, `local-${session.casualResult.matchId}`) ? () => openReview(`local-${session.casualResult!.matchId}`) : undefined} />;
+  if (screen === 'postMatch' && session.result) return <PostMatchScreen player={session.player} key={session.result.matchId} result={session.result} onHome={returnHome} onRematch={rematch} />;
+  if (screen === 'casualResult' && session.casualResult) return <CasualResultScreen result={session.casualResult} onHome={returnHome} onRematch={rematch} />;
   return <View style={styles.root}>
     {tab === 'home' ? <HomeScreen selectedMode={selectedMode} onModes={() => setTab('modes')} player={session.player} onPlay={playSelected} onProfile={() => setTab('profile')} />
       : tab === 'modes' ? <ModesScreen selected={selectedMode} onSelect={setSelectedMode} onPlay={playSelected} />
         : tab === 'shop' ? <ShopScreen player={session.player} onOpenCosmetics={openCosmetics} />
-          : <ProfileScreen onFriends={openFriends} friendCount={mockFriends.length} onOpenCosmetics={openCosmetics} player={session.player} peakRating={session.peakRating} rankedMatchCount={session.rankedMatchCount} recentMatches={session.recentMatches} reviewIds={session.matchReviews?.map(review => review.id)} onReview={openReview} />}
+          : <ProfileScreen onFriends={openFriends} friendCount={mockFriends.length} player={session.player} peakRating={session.peakRating} rankedMatchCount={session.rankedMatchCount} recentMatches={session.recentMatches} reviewIds={session.matchReviews?.map(review => review.id)} onReview={openReview} />}
     <View style={[styles.bar, { paddingBottom: Math.max(10, insets.bottom), paddingLeft: insets.left + 24, paddingRight: insets.right + 24 }]}>
       {tabs.map(item => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.selectedTab]} accessibilityRole="tab" accessibilityState={{ selected: tab === item }}>
         <Text style={[styles.label, tab === item && styles.selected]}>{item.toUpperCase()}</Text>
